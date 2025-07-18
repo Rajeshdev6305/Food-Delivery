@@ -9,7 +9,8 @@ import { useNavigate } from 'react-router-dom';
 
 const PlaceOrder = () => {
 const { getTotalCartAmount,token,food_list,cartItems,url} = useContext(StoreContext);
-
+const [paymentMethod, setPaymentMethod] = useState("cod");
+const [orderSuccess, setOrderSuccess] = useState(false);
 
 
 const [data,setData] = useState({ 
@@ -29,7 +30,9 @@ const onChangeHandler = (event) => {
   const value =event.target.value;
   setData(data=>({...data,[name]:value}))
 }
-
+ const handlePaymentMethodChange = (e) => {
+    setPaymentMethod(e.target.value);
+  };
 const placeOrder = async (event) => {
   event.preventDefault();
 
@@ -46,17 +49,21 @@ let orderData = {
   address:data,
   items: orderItems,
   amount: getTotalCartAmount() + 2, // Adding delivery fee of $2
-  
+  paymentMethod,
+
 }  
 let response = await axios.post(url+"/api/order/place", orderData,{headers:{token}})
 if (response.data.success) {
-const {session_url} = response.data;
-window.location.replace(session_url);
-
-} else {
-  alert("Error");
-}
-}
+      if (paymentMethod === "stripe") {
+        window.location.replace(response.data.session_url);
+      } else {
+        setOrderSuccess(true); // show top message
+        setTimeout(() => navigate("/myorders"), 1000); // navigate after 1 seconds
+      }
+    } else {
+      alert("Error placing order");
+    }
+  };
 
 const navigate = useNavigate();
 
@@ -73,6 +80,12 @@ else if(getTotalCartAmount===0)
 },[token])
 
   return (
+      <>
+    {orderSuccess && (
+  <div className="order-success-message">
+    ✅ Order placed successfully!
+  </div>
+)}
    <form onSubmit={placeOrder} className='place-order'>
     <div className="place-order-left">
    <p className="title">Delivery Information</p>
@@ -113,11 +126,36 @@ else if(getTotalCartAmount===0)
               <b>${getTotalCartAmount()===0?0:getTotalCartAmount()+2}</b>
             </div>
           </div>
+         <h3>Payment Method</h3>
+          <div className="payment-method">
+            <label>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="cod"
+                checked={paymentMethod === "cod"}
+                onChange={handlePaymentMethodChange}
+              />
+              COD (Cash on delivery)
+            </label>
+            <label>
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="stripe"
+                checked={paymentMethod === "stripe"}
+                onChange={handlePaymentMethodChange}
+              />
+              Stripe (Credit / Debit)
+            </label>
+          </div>
 
-          <button type='submit'>PROCEED TO PAYMENT</button>
+          <button type="submit">Place Order</button>
         </div>
     </div>
    </form>
+            </>
+
   )
 }
 
